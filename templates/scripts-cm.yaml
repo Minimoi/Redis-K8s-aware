@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-label-scripts
+  labels:
+    {{- include "common.labels.standard" . | nindent 4 }}
+data:
+  failover.sh: |
+    #!/bin/bash
+    if [[ "$6" =~ "$POD_NAME" ]]; then
+      /opt/k8s/bin/kubectl label --overwrite pod $POD_NAME redis-role=master
+    else
+      /opt/k8s/bin/kubectl label --overwrite pod $POD_NAME redis-role=slave
+    fi
+  startup.sh: |
+    #!/bin/bash
+    if [[ $(/opt/k8s/bin/kubectl get pods --no-headers | wc -l) -eq 1 ]]; then
+      # First started pod will be master
+      /opt/k8s/bin/kubectl label --overwrite pod $POD_NAME redis-role=master
+    else
+      /opt/k8s/bin/kubectl label --overwrite pod $POD_NAME redis-role=slave
+    fi

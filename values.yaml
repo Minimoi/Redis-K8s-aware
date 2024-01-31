@@ -1,0 +1,49 @@
+redis:
+  auth:
+    enabled: false
+    sentinel: false
+  sentinel:
+    enabled: true
+    configuration: "sentinel client-reconfig-script mymaster /opt/k8s/scripts/failover.sh"
+    preExecCmds: "/opt/k8s/scripts/startup.sh"
+    extraEnvVars:
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.name
+      - name: POD_NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+    extraVolumes:
+      - name: kubectl
+        emptyDir: {}
+      - name: label-scripts
+        configMap:
+          name: redis-label-scripts
+          defaultMode: 493
+    extraVolumeMounts:
+      - mountPath: /opt/k8s/bin
+        name: kubectl
+      - mountPath: /opt/k8s/scripts
+        name: label-scripts
+  replica:
+    initContainers:
+     - name: kubectl
+       image: bitnami/kubectl:1.27.8
+       imagePullPolicy: Always
+       command: ['sh', '-c', 'cp /opt/bitnami/kubectl/bin/kubectl /opt/k8s/bin/']
+       volumeMounts:
+         - mountPath: /opt/k8s/bin
+           name: kubectl
+  rbac:
+    create: true
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - pods
+        verbs:
+          - get
+          - list
+          - patch
